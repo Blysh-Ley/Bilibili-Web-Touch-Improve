@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         Bilibili 视频触屏优化
 // @namespace    http://tampermonkey.net/
 // @version      2024-08-16
-// @description  try to take over the world!
-// @author       You
+// @description  优化bilibili web的触屏体验
+// @author       Blysh
 // @match        *://*.bilibili.com/*
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant        none
