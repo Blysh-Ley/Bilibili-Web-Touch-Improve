@@ -18,7 +18,7 @@ class VideoGestureHandler {
         this.textBox = null;
         this.photoShotStyle = null;
         this.progressElement = null;
-        
+
         this.swipeTouchEnd = this.swipeTouchEnd.bind(this);
         this.longPressTouchEnd = this.longPressTouchEnd.bind(this);
         this.normolTouchEnd = this.normolTouchEnd.bind(this);
@@ -29,7 +29,6 @@ class VideoGestureHandler {
             // 阻止默认的双击全屏行为
             event.preventDefault();
             event.stopPropagation();
-            this.preventCtrlMenu();
             // 切换视频的播放/暂停状态
             if (this.videoElement.paused) {
                 this.videoElement.play();
@@ -50,6 +49,8 @@ class VideoGestureHandler {
         this.videoElement.addEventListener('touchend', this.normolTouchEnd);
     }
 
+    //! ------------------Proxy函数------------------
+
     handler() {
         return {
             set: (target, property, value) => {
@@ -57,7 +58,7 @@ class VideoGestureHandler {
                 this.videoElement.removeEventListener('touchend', this.normolTouchEnd);
                 if (property === 'gestureType' && value === 'longpress') {
                     this.videoElement.addEventListener('touchend', this.longPressTouchEnd);
-                } 
+                }
                 else if (property === 'gestureType' && value === 'swipe') {
                     // 创建并触发 mouseenter 事件
                     const mouseEnterEvent = new MouseEvent('mouseenter', {
@@ -67,7 +68,8 @@ class VideoGestureHandler {
                     });
                     this.progressElement = document.querySelector(".bpx-player-progress");
                     this.progressElement.dispatchEvent(mouseEnterEvent);
-                    let photoShot = document.querySelector(".bpx-player-progress-popup");
+                    // 将photoshot固定显示在屏幕下方
+                    this.photoShot = document.querySelector(".bpx-player-progress-popup");
                     this.photoShotStyle = document.createElement("style");
                     this.photoShotStyle.innerHTML = `
                         .bpx-player-progress-popup{
@@ -76,13 +78,16 @@ class VideoGestureHandler {
                             overflow:visible!important;
                             transform: translate(-100%, 100%);
                     }`;
-                    photoShot.appendChild(this.photoShotStyle);
-                    let photoShotSize = document.querySelector(".bpx-player-progress-preview-image");
-                    photoShotSize.style.height = "200%";
-                    let indicator = document.querySelector(".bpx-player-progress-move-indicator");
-                    indicator.style.display = "none";
-                    let previewTime = document.querySelector(".bpx-player-progress-preview-time");
-                    previewTime.style.display = "none";
+                    this.photoShot.appendChild(this.photoShotStyle);
+                    // photoshot放大两倍
+                    this.photoShotSize = document.querySelector(".bpx-player-progress-preview-image");
+                    this.photoShotSize.style.height = "200%";
+                    // 隐藏进度条上的指示器和预览时间
+                    this.indicator = document.querySelector(".bpx-player-progress-move-indicator");
+                    //this.indicator.style.display = "none";
+                    this.previewTime = document.querySelector(".bpx-player-progress-preview-time");
+                    this.previewTime.style.display = "none";
+                    // 添加touchend事件监听器
                     this.videoElement.addEventListener('touchend', this.swipeTouchEnd);
                 }
                 this.videoElement.addEventListener('touchend', this.normolTouchEnd);
@@ -111,6 +116,9 @@ class VideoGestureHandler {
         };
     }
 
+    //! ------------------EventListener函数------------------
+
+    //* 触摸开始
     handleTouchStart(event) {
         this.currenttime = this.videoElement.currentTime;
         const touchCount = event.touches.length;
@@ -127,7 +135,7 @@ class VideoGestureHandler {
             this.intervals.push(this.touchMoveInterval);
         }
     }
-
+    //* 触摸移动
     handleTouchMove(event) {
         event.preventDefault();
         event.stopPropagation();
@@ -135,7 +143,7 @@ class VideoGestureHandler {
         this.lastTouchX = touch.clientX;
         this.lastTouchY = touch.clientY;
     }
-
+    //* 单指左右移动调整时间
     checkOneFingerMovement() {
         let deltaX = this.lastTouchX - this.touchStartX;
         let deltaY = this.lastTouchY - this.touchStartY;
@@ -152,17 +160,20 @@ class VideoGestureHandler {
             this.lastDistance = distance;
             return;
         }
-        const move = Math.abs(distance - this.lastDistance);
+        const move = Math.abs(distance - this.lastDistance); //确保手指有移动
         if (Math.abs(distance) > 5 && this.proxyGestureType.gestureType === 'none' && this.proxyGestureType.gestureType !== 'swipe') {
             this.proxyGestureType.gestureType = 'swipe';
             this.clearOtherInterval(this.touchMoveInterval);
         }
-        if (direction === 'right' && move > 0.5) {
-            this.add_time = distance * 0.1;
+
+        if ((direction === 'right' || direction === 'left') && move > 0.5) {
+            this.add_time = direction === 'right' ? distance * 0.1 : -distance * 0.1;
             let totalTime = this.currenttime + this.add_time;
             let positionRatio = totalTime / this.videoElement.duration;
             let start_X = this.progressElement.clientWidth * positionRatio;
             let videoRect = this.videoElement.getBoundingClientRect();
+            
+            // 模拟鼠标在进度条移动事件
             const mouseEvent = new MouseEvent('mousemove', {
                 view: window,
                 bubbles: true,
@@ -170,39 +181,20 @@ class VideoGestureHandler {
                 clientX: videoRect.left + start_X + 14
             });
             this.videoElement.dispatchEvent(mouseEvent);
+            
             let add_txt;
-            if (this.add_time + this.currenttime < this.videoElement.duration) {
+            if (this.add_time + this.currenttime < 0) {
+                add_txt = "00:00 / " + this.sec2Time(this.videoElement.duration);
+            } else if (this.add_time + this.currenttime < this.videoElement.duration) {
                 add_txt = this.sec2Time(this.add_time + this.currenttime) + " / " + this.sec2Time(this.videoElement.duration);
             } else {
                 add_txt = this.sec2Time(this.videoElement.duration) + " / " + this.sec2Time(this.videoElement.duration);
             }
             this.textBox = this.createTextBox(this.textBox, add_txt);
         }
-
-        if (direction === 'left' && move > 0.5) {
-            this.add_time = -distance * 0.1;
-            let totalTime = this.currenttime + this.add_time;
-            let positionRatio = totalTime / this.videoElement.duration;
-            let start_X = this.progressElement.clientWidth * positionRatio;
-            let videoRect = this.videoElement.getBoundingClientRect();
-            const mouseEvent = new MouseEvent('mousemove', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                clientX: videoRect.left + start_X + 14
-            });
-            this.videoElement.dispatchEvent(mouseEvent);
-            let add_txt;
-            if (this.currenttime + this.add_time < 0) {
-                add_txt = "00:00 / " + this.sec2Time(this.videoElement.duration);
-            } else {
-                add_txt = this.sec2Time(this.add_time + this.currenttime) + " / " + this.sec2Time(this.videoElement.duration);
-            }
-            this.textBox = this.createTextBox(this.textBox, add_txt);
-        }
         this.lastDistance = distance;
     }
-
+    //* 单指长按倍速播放
     checkLongPress() {
         let touchDuration = Date.now() - this.touchStartTime;
         if (touchDuration >= this.longPressThreshold && this.proxyGestureType.gestureType === 'none' && this.proxyGestureType.gestureType !== 'longpress') {
@@ -216,8 +208,6 @@ class VideoGestureHandler {
         let direction = deltaX;
         if (deltaY > 5) { direction = "down"; }
         else if (deltaY < -5) { direction = "up"; }
-        else if (Math.abs(deltaX) > 20) { }
-        else { }
         let distance = Math.abs(deltaX);
         if (this.lastDistance === 0) {
             this.lastDistance = distance;
@@ -238,6 +228,8 @@ class VideoGestureHandler {
         }
         this.lastDistance = distance;
     }
+
+    //! ------------------END函数------------------
 
     longPressTouchEnd(event) {
         this.videoElement.playbackRate = 1;
@@ -262,6 +254,7 @@ class VideoGestureHandler {
         this.lastDistance = 0;
         this.proxyGestureType.gestureType = 'none';
         this.photoShotStyle.remove();
+        this.photoShotSize.style.height = "100%";
         this.videoElement.removeEventListener('touchend', this.swipeTouchEnd);
     }
 
@@ -270,6 +263,8 @@ class VideoGestureHandler {
         this.videoElement.playbackRate = 1;
         this.proxyGestureType.gestureType = 'none';
     }
+
+    //! ------------------工具函数------------------
 
     clearAllInterval() {
         for (let i = 0; i < this.intervals.length; i++) {
@@ -333,7 +328,7 @@ class VideoGestureHandler {
             try {
                 observer3.disconnect();
             } catch (err) { }
-        }, 100);
+        }, 50);
     }
 
     createTextBox(oldtextBox = null, txt) {
@@ -396,12 +391,12 @@ class VideoGestureHandler {
 
     // 省略其他代码...
 }
-class AddRightEntryEventListener{
-    constructor(rightEntry){
+class AddRightEntryEventListener {
+    constructor(rightEntry) {
         this.rightEntry = rightEntry;
-        this.rightEntry.addEventListener('click',this.handleRightEntryClick.bind(this));
+        this.rightEntry.addEventListener('click', this.handleRightEntryClick.bind(this));
     }
-    handleRightEntryClick(event){
+    handleRightEntryClick(event) {
         let target = event.target;
         // 向上查找直到找到 a 标签或者到达 document
         while (target && target !== document) {
@@ -462,17 +457,41 @@ function waitForRightEntry(timeout = 5000) {
     });
 }
 
-Promise.allSettled([waitForVideoELement(), waitForRightEntry()])
-    .then((results) => {
-        results.forEach((result) => {
-            if (result.status === 'fulfilled') {
-                if (result.value instanceof HTMLVideoElement) {
-                    new VideoGestureHandler(result.value);
-                } else if (result.value instanceof HTMLElement) {
-                    new AddRightEntryEventListener(result.value);
-                }
-            } else {
-                console.error('Error:', result.reason);
-            }
-        });
+var currenturl = window.location.href.replace(/\/\?p=/g, "?p="); //打开的网页
+if (currenturl.includes("https://www.bilibili.com/correspond") || currenturl.includes("https://message.bilibili.com/pages/nav/header_sync")) { //排除两个网站
+    return
+}
+
+Promise.race([waitForVideoELement(), waitForRightEntry()])
+    .then((result) => {
+        if (result instanceof HTMLVideoElement) {
+            console.log("Video element found!");
+            new VideoGestureHandler(result);
+            handleAnotherPromise(waitForRightEntry, AddRightEntryEventListener , "right");
+        } else if (result instanceof HTMLElement) {
+            console.log("Right entry element found!");
+            new AddRightEntryEventListener(result);
+            handleAnotherPromise(waitForVideoELement, VideoGestureHandler , "video");
+        }
+    })
+    .catch((error) => {
+        console.error('Error:', error);
     });
+
+
+function handleAnotherPromise(promiseFunc, handler , type) {
+    promiseFunc()
+        .then((result) => {
+            new handler(result);
+            if(type == "video"){
+                console.log("Video element found!");
+            }else if(type == "right"){
+                console.log("Right entry element found!");
+            }
+            return
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            return
+        });
+}
