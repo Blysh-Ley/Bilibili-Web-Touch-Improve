@@ -1,9 +1,10 @@
 class VideoGestureHandler {
+
     //! ------------------ini函数------------------
 
     requestCtrlMenu(){
-        currenturl = window.location.href;
-        if (currenturl.includes("bilibili.com")){
+        this.currenturl = window.location.href;
+        if (this.currenturl.includes("bilibili.com")){
             this.targetElement1 = document.querySelector('.bpx-player-control-entity');
             this.targetElement2 = document.querySelector('.bpx-player-container');
             this.targetElement3 = document.querySelector('.bpx-player-pbp');
@@ -142,9 +143,8 @@ class VideoGestureHandler {
 
     //! ------------------EventListener函数------------------
 
-    //* 触摸开始
-    
 
+    //* 单击事件
     handleClick(event) {
         event.preventDefault();
         event.stopPropagation();
@@ -163,7 +163,7 @@ class VideoGestureHandler {
             this.ctrlMenu.hide();
         }
     }
-
+    //* 双击事件
     handleDblClick(event) {
         event.preventDefault();
         event.stopPropagation();
@@ -182,7 +182,7 @@ class VideoGestureHandler {
             this.ctrlMenu.show();
         }, 0);
     }
-
+    //* 触摸开始
     handleTouchStart(event) {
         event.preventDefault();
         event.stopPropagation();
@@ -193,13 +193,22 @@ class VideoGestureHandler {
         this.touchStartY = touch.clientY;
         this.lastTouchX = touch.clientX;
         this.lastTouchY = touch.clientY;
+        if(touchCount === 1){
         this.touchStartTime = Date.now();
+        }
         this.clearAllInterval();
         if (touchCount === 1) {
             this.longPressInterval = setInterval(this.checkLongPress.bind(this), 200);
             this.intervals.push(this.longPressInterval);
-            this.touchMoveInterval = setInterval(this.checkOneFingerMovement.bind(this), 50);
+            this.touchMoveInterval = setInterval(this.checkSwipe.bind(this), 50);
             this.intervals.push(this.touchMoveInterval);
+        }
+        if (touchCount === 2) {
+            this.add_time = 0;
+            this.currenttime = this.videoElement.currentTime;
+            const secondTouchTime = Date.now();
+            const timeDifference = secondTouchTime - this.touchStartTime;
+            console.log(`第二个手指进入的时间差: ${timeDifference} 毫秒`);
         }
     }
     //* 触摸移动
@@ -211,7 +220,7 @@ class VideoGestureHandler {
         this.lastTouchY = touch.clientY;
     }
     //* 单指左右移动调整时间
-    checkOneFingerMovement() {
+    checkSwipe() {
         let deltaX = this.lastTouchX - this.touchStartX;
         let deltaY = this.lastTouchY - this.touchStartY;
         let direction;
@@ -299,7 +308,6 @@ class VideoGestureHandler {
     longPressTouchEnd(event) {
         this.videoElement.playbackRate = 1;
         this.clearAllInterval();
-        //this.preventCtrlMenu();
         this.proxyGestureType.gestureType = 'none';
         this.proxyPlaybackRate.playbackRate = '1x';
         this.videoElement.removeEventListener('touchend', this.longPressTouchEnd);
@@ -379,58 +387,6 @@ class VideoGestureHandler {
             }
         }
     }
-    /*
-    preventCtrlMenu() {
-        const observer1 = new MutationObserver((mutationsList) => {
-            for (let mutation of mutationsList) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'data-shadow-show') {
-                    observer1.disconnect();
-                    this.targetElement1.setAttribute("data-shadow-show", true);
-                    observer1.observe(this.targetElement1, config1);
-                }
-            }
-        });
-        const config1 = { attributes: true };
-        observer1.observe(this.targetElement1, config1);
-
-        const observer2 = new MutationObserver((mutationsList) => {
-            for (let mutation of mutationsList) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'data-ctrl-hidden') {
-                    observer2.disconnect();
-                    this.targetElement2.setAttribute("data-ctrl-hidden", true);
-                    observer2.observe(this.targetElement2, config2);
-                }
-            }
-        });
-        const config2 = { attributes: true };
-        observer2.observe(this.targetElement2, config2);
-
-
-
-        let observer3;
-        try {
-            observer3 = new MutationObserver((mutationsList) => {
-                for (let mutation of mutationsList) {
-                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                        observer3.disconnect();
-                        this.targetElement3.setAttribute("class", "bpx-player-pbp pin");
-                        observer3.observe(this.targetElement3, config3);
-                    }
-                }
-            });
-            const config3 = { attributes: true };
-            observer3.observe(this.targetElement3, config3);
-        } catch (err) { }
-
-        setTimeout(function () {
-            observer1.disconnect();
-            observer2.disconnect();
-            try {
-                observer3.disconnect();
-            } catch (err) { }
-        }, 50);
-    }
-*/
     createTextBox(oldtextBox = null, txt) {
         if (oldtextBox) {
             oldtextBox.remove();
@@ -541,7 +497,6 @@ function waitForVideoELement(timeout = 5000) {
         }, timeout);
     });
 }
-
 function waitForRightEntry(timeout = 10000) {
     return new Promise((resolve, reject) => {
         const intervalID = setInterval(() => {
@@ -564,9 +519,22 @@ function waitForRightEntry(timeout = 10000) {
     });
 }
 
-var currenturl = window.location.href.replace(/\/\?p=/g, "?p="); //打开的网页
-if (currenturl.includes("https://www.bilibili.com/correspond") || currenturl.includes("https://message.bilibili.com/pages/nav/header_sync")) { //排除两个网站
-    return
+
+let currentUrl = window.location.href; // 打开的网页
+const exceptUrl = [
+"https://www.bilibili.com/correspond",
+"https://message.bilibili.com/pages/nav/header_sync"];
+let shouldTerminate = false;
+
+for (let url of exceptUrl){
+    if (currentUrl.includes(url)) {
+        shouldTerminate = true;
+        break;
+    }
+}
+if (shouldTerminate) {
+    shouldTerminate = false;
+    return;
 }
 
 
