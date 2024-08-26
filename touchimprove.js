@@ -288,13 +288,13 @@ class VideoGestureHandler {
         if (this.lastDistance === 0) {
             this.lastDistance = distance;
         }
-        if (Math.abs(distance) > 5 && direction === 'down') {
+        if (Math.abs(distance) > 20 && direction === 'down') {
             if (this.proxyPlaybackRate.playbackRate !== '2x') {
                 this.videoElement.playbackRate = 2;
                 this.proxyPlaybackRate.playbackRate = '2x';
             }
         }
-        if (Math.abs(distance) > 5 && direction === 'up') {
+        if (Math.abs(distance) > 20 && direction === 'up') {
             if (this.proxyPlaybackRate.playbackRate !== '3x') {
                 this.videoElement.playbackRate = 3;
                 this.proxyPlaybackRate.playbackRate = '3x';
@@ -523,7 +523,8 @@ function waitForRightEntry(timeout = 10000) {
 let currentUrl = window.location.href; // 打开的网页
 const exceptUrl = [
 "https://www.bilibili.com/correspond",
-"https://message.bilibili.com/pages/nav/header_sync"];
+"https://message.bilibili.com/pages/nav/header_sync"
+];
 let shouldTerminate = false;
 
 for (let url of exceptUrl){
